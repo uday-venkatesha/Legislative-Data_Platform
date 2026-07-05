@@ -15,6 +15,8 @@ _STATE_TO_CODE = {"alabama":"AL","alaska":"AK","arizona":"AZ","arkansas":"AR",
  "washington":"WA","west virginia":"WV","wisconsin":"WI","wyoming":"WY","district of columbia":"DC"}
 _CODE_TO_STATE = {v: k.title() for k, v in _STATE_TO_CODE.items()}
 _CODE_TO_STATE["US"] = "United States"
+_YEAR_RE = re.compile(r"(?:19|20)\d{2}")
+
 
 def norm_state(value):
     """'Kansas' / 'KS' / 'United States' -> ('KS','Kansas'); federal -> ('US',...)."""
@@ -63,7 +65,17 @@ def norm_chamber(identifier=None, body=None):
     if p.startswith(("SB","SR","SCR","SJR","SJ","S")): return "Senate"
     return None
 
+def session_year(value):
+    """Collapse any source's session label to its START YEAR so keys align
+    across sources: '2025-2026'->2025, '2026A'->2026, 2025 (int)->2025."""
+    if value is None: return None
+    if isinstance(value, int): return value
+    m = _YEAR_RE.search(str(value))
+    return int(m.group(0)) if m else None
+
 def make_uid(state_code, session, identifier):
-    """Source-agnostic dedup key: KS:2025-2026:HB2427"""
+    """Cross-source dedup key on the session's START YEAR: KS:2025:HB2427.
+    Accepts a raw session label OR a year; both collapse to the same key."""
     ident = (norm_identifier(identifier) or "").replace(" ", "")
-    return f"{state_code or 'NA'}:{session or 'NA'}:{ident}"
+    yr = session_year(session)
+    return f"{state_code or 'NA'}:{yr or 'NA'}:{ident}"

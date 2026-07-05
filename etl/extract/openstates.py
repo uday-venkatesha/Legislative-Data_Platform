@@ -1,22 +1,29 @@
 import os, time, requests
 from dotenv import load_dotenv
-
+from requests.exceptions import Timeout, ConnectionError as ReqConnError
 load_dotenv()
 BASE = "https://v3.openstates.org"
 HEADERS = {"X-API-KEY": os.environ["OPENSTATES_API_KEY"]}
 
-def _get_with_retry(url, params, retries=4):
-    """OpenStates free tier is rate-limited; respect 429 + Retry-After."""
-    for _ in range(retries):
-        r = requests.get(url, headers=HEADERS, params=params, timeout=30)
-        if r.status_code == 429:
-            wait = int(r.headers.get("Retry-After", 15))
-            print(f"  rate limited, sleeping {wait}s")
+def _get_with_retry(url, params, retries=4, timeout=45):
+    """Retry on rate-limits AND transient network failures with backoff."""
+    last_err = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(url, headers=HEADERS, params=params, timeout=timeout)
+            if r.status_code == 429:
+                wait = int(r.headers.get("Retry-After", 15))
+                print(f"  rate limited, sleeping {wait}s")
+                time.sleep(wait)
+                continue
+            r.raise_for_status()
+            return r
+        except (Timeout, ReqConnError) as e:
+            last_err = e
+            wait = 5 * (attempt + 1)
+            print(f"  network error ({type(e).__name__}), retry in {wait}s")
             time.sleep(wait)
-            continue
-        r.raise_for_status()
-        return r
-    r.raise_for_status()
+    raise RuntimeError(f"Failed after {retries} attempts: {url}") from last_err
 
 def fetch_bills(state, max_pages=5, per_page=20, sleep=1.0):
     """Yield raw bill dicts for one jurisdiction, freshest activity first.

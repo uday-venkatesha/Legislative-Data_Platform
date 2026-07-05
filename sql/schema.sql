@@ -1,6 +1,9 @@
 CREATE TABLE IF NOT EXISTS bills (
-  bill_id               VARCHAR(128) NOT NULL,   -- OCD id, e.g. ocd-bill/... : natural key
+  bill_id               VARCHAR(128) NOT NULL,
+  bill_uid              VARCHAR(160),
   state                 VARCHAR(64)  NOT NULL,
+  state_code            CHAR(2),
+  chamber               VARCHAR(16),
   session               VARCHAR(64),
   identifier            VARCHAR(64),             -- "HB 2001"
   title                 TEXT,
@@ -14,10 +17,13 @@ CREATE TABLE IF NOT EXISTS bills (
   latest_action_date    DATE,
   latest_action_desc    TEXT,
   openstates_url        VARCHAR(512),
-  source_name           VARCHAR(64),             -- lineage: which pipeline wrote this row
+  source_name           VARCHAR(64),
+  source_bill_id        VARCHAR(160),             -- lineage: which pipeline wrote this row
   ingested_at           DATETIME,                -- lineage: when we loaded it
   updated_at_source     DATETIME,                -- when the source last changed it
   PRIMARY KEY (bill_id),
+  UNIQUE KEY uq_bill_uid (bill_uid),
+  KEY idx_state_code (state_code),
   KEY idx_state_session (state, session),
   KEY idx_furthest_stage (furthest_stage),
   KEY idx_lifecycle_state (lifecycle_state),
@@ -31,4 +37,18 @@ CREATE TABLE IF NOT EXISTS raw_bills (
   payload         JSON         NOT NULL,
   fetched_at      DATETIME     NOT NULL,
   PRIMARY KEY (source, source_bill_id)
+) CHARACTER SET utf8mb4;
+
+
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  run_id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+  source         VARCHAR(32)  NOT NULL,      -- openstates / legiscan
+  run_started_at DATETIME     NOT NULL,
+  run_ended_at   DATETIME,
+  rows_fetched   INT,                        -- what the API returned
+  rows_upserted  INT,                        -- what landed in bills
+  status         VARCHAR(16)  NOT NULL,      -- success / failed
+  error_message  TEXT,                       -- populated on failure
+  KEY idx_source_time (source, run_started_at)
 ) CHARACTER SET utf8mb4;
