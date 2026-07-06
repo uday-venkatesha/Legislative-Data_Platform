@@ -4,7 +4,7 @@ A multi-source ETL pipeline that pulls US state legislative data from public API
 
 It looks like a civic project, but the point of it is data engineering: two sources that disagree, a reconciliation layer that resolves the conflicts by rule, and a governance layer that makes every run auditable. Everything is nonpartisan by design — the platform reports counts, rates, and status, never "good" or "bad" bills.
 
-**Live dashboard:** _[add your Looker Studio link here]_
+**Live dashboard:** https://datastudio.google.com/reporting/c60e0d63-58fc-40bf-9b30-a7cfb747389d
 
 Currently covering Kansas, Missouri, and Colorado (2025–26 sessions), ~5,500 source rows reconciled into 5,343 distinct bills.
 
